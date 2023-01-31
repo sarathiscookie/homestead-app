@@ -16,9 +16,7 @@ class CreateSubscriptionsTable extends Migration
         Schema::create('subscriptions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained();
-            $table->string('name');
             $table->foreignId('payment_id')->constrained();
-            $table->integer('quantity');
             $table->date('trial_ends_at')->nullable();
             $table->date('ends_at')->nullable();
             $table->timestamps();
