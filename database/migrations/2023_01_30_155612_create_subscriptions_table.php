@@ -17,6 +17,7 @@ class CreateSubscriptionsTable extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained();
             $table->foreignId('payment_id')->constrained();
+            $table->string('btree_customer_id')->nullable();
             $table->string('transaction_id')->nullable();
             $table->date('cancelled_at')->nullable();
             $table->date('ends_at')->nullable();
