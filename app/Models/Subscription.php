@@ -15,4 +15,12 @@ class Subscription extends Model
      * @var array
      */
     protected $guarded = ['id'];
+
+    /**
+     * Get the user that owns the subscription.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

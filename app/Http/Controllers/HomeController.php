@@ -6,6 +6,7 @@ use App\Models\Payment;
 use App\Http\Traits\CredentialsTrait;
 use App\Models\Subscription;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class HomeController extends Controller
 {
@@ -27,11 +28,14 @@ class HomeController extends Controller
      */
     public function index()
     {
-        $payments = Payment::get(['id', 'plan', 'amount']);
+        $payments = Payment::where('status', 'enabled')
+            ->get(['id', 'plan', 'amount']);
+
+        $subscription = auth()->user()->subscription;
 
         $token = $this->gateway()->ClientToken()->generate();
 
-        return view('home', ['payments' => $payments, 'token' => $token]);
+        return view('home', ['payments' => $payments, 'token' => $token, 'subscription' => $subscription]);
     }
 
     /**
@@ -43,17 +47,14 @@ class HomeController extends Controller
     public function checkout(Request $request)
     {
         $payment = Payment::where('id', $request->id)
-            ->first();   
+            ->first();
 
         if ($payment) {
             $gateway = $this->gateway();
 
-            $amount = $payment->amount;
-            $nonce = $request->payment_method_nonce;
-
             $result = $gateway->transaction()->sale([
-                'amount' => $amount,
-                'paymentMethodNonce' => $nonce,
+                'amount' => $payment->amount,
+                'paymentMethodNonce' => $request->payment_method_nonce,
                 'customer' => [
                     'firstName' => auth()->user()->name,
                     'email' => auth()->user()->email
@@ -63,13 +64,13 @@ class HomeController extends Controller
                 ]
             ]);
 
-            if ($result->success || !is_null($result->transaction)) {
+            if ($result->success) {
 
                 $transaction = $result->transaction;
 
-                $this->store($payment->id);
+                $this->store($payment, $transaction);
     
-                return back()->with('message', 'Transaction successful. The ID is:'. $transaction->id);
+                return redirect('/home')->with('message', 'Transaction successful. The ID is:'. $transaction->id);
                 
             } else {
                 $errorString = "";
@@ -78,7 +79,7 @@ class HomeController extends Controller
                     $errorString .= 'Error: ' . $error->code . ": " . $error->message . "\n";
                 }
     
-                return back()->withErrors('An error occurred with the message: '.$errorString);          
+                return back()->withErrors('An error occurred with the message: '.$errorString);
             }
         } else {
             abort(404);
@@ -88,14 +89,34 @@ class HomeController extends Controller
     /**
      * Store subscription details and user information.
      *
-     * * @param  int  $paymentId
+     * @param  object  $payment
+     * @param  object  $transaction
      * @return \Illuminate\Http\Response
      */
-    public function store($paymentId)
+    public function store($payment, $transaction)
     {
         Subscription::create([
             'user_id' => auth()->user()->id,
-            'payment_id' => $paymentId
+            'payment_id' => $payment->id,
+            'transaction_id' => $transaction->id,
+            'ends_at' => $this->calculateDate($payment->plan)
         ]);
+    }
+
+    /**
+     * Generate date and time based on plan.
+     *
+     * @param  string  $plan
+     * @return \Illuminate\Http\Response
+     */
+    public function calculateDate($plan)
+    {
+        if ($plan === 'Yearly') {
+            $newDateTime = Carbon::now()->addYear();
+        } else {
+            $newDateTime = Carbon::now()->addMonth();
+        }
+
+        return $newDateTime;
     }
 }

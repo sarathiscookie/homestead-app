@@ -36,9 +36,29 @@
                             @csrf
                             <div class="row row-cols-1 row-cols-md-2 mb-2 text-center">
                                 @forelse ($payments as $payment)
+                                    @isset($subscription)
+                                        @if ($payment->id === $subscription->payment_id)
+                                            @php
+                                                $borderPrimary = "border-primary";
+                                                $textPrimary = "text-bg-primary";
+                                                $checked = "checked";
+                                                $disabled = "";
+                                                $cancelSubscription = '<button type="button" class="btn btn-info btn-sm">Cancel Subscription</button>';
+                                            @endphp
+                                        @else
+                                            @php
+                                                $borderPrimary = "border-default";
+                                                $textPrimary = "text-bg-default";
+                                                $checked = "";
+                                                $disabled = "disabled";
+                                                $cancelSubscription = "";
+                                            @endphp
+                                        @endif
+                                    @endisset
                                     <div class="col">
-                                        <div class="card mb-6 rounded-3 shadow-sm border-primary">
-                                            <div class="card-header py-3 text-bg-primary border-primary">
+                                        <div class="card mb-6 rounded-3 shadow-sm {{ $borderPrimary ?? '' }}">
+                                            <div class="card-header py-3 {{ $textPrimary ?? '' }}
+                                            {{ $borderPrimary ?? ''}}">
                                                 <h4 class="my-0 fw-normal">{{ $payment->plan }}</h4>
                                             </div>
                                             <div class="card-body">
@@ -46,12 +66,15 @@
                                                 <h6 class="card-title pricing-card-title amount-wrapper">
                                                     {{ $payment->amount }}
                                                     <input class="form-check-input form-radio-input-field" type="radio"
-                                                    value="{{ $payment->id }}" id="id" name="id">
+                                                    value="{{ $payment->id }}" id="id" name="id"
+                                                    {{ $checked ?? '' }} {{ $disabled ?? '' }}>
                                                 </h6>
 
+                                                {!! $cancelSubscription ?? '' !!}
                                             </div>
                                         </div>
                                     </div>
+
                                 @empty
                                     <p>Not found</p>
                                 @endforelse
@@ -64,7 +87,7 @@
                                     </div>
 
                                     <input id="nonce" name="payment_method_nonce" type="hidden" />
-                                    <button class="button" type="submit"><span>Subscribe</span></button>
+                                    <button class="button" type="submit"><span>Checkout</span></button>
                                 </div>
                             </div>
 
