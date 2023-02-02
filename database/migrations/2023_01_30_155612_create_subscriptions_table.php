@@ -20,6 +20,7 @@ class CreateSubscriptionsTable extends Migration
             $table->string('btree_customer_id')->nullable();
             $table->string('transaction_id')->nullable();
             $table->date('cancelled_at')->nullable();
+            $table->date('next_billing_at')->nullable();
             $table->date('ends_at')->nullable();
             $table->timestamps();
         });

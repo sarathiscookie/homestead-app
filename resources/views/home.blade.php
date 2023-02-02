@@ -43,7 +43,16 @@
                                                 $textPrimary = "text-bg-primary";
                                                 $checked = "checked";
                                                 $disabled = "";
-                                                $cancelSubscription = '<button type="button" class="btn btn-info btn-sm">Cancel Subscription</button>';
+                                                if ($payment->plan !== $paymentYearlyType) {
+                                                    if ($subscription->cancelled_at && $subscription->ends_at)
+                                                    {
+                                                        $borderPrimary = "border-warning";
+                                                        $textPrimary = "text-bg-warning";
+                                                        $cancelSubscription = '<span class="badge bg-secondary">Subscription Cancelled</span>';
+                                                    } else {
+                                                        $cancelSubscription = '<a href="/cancel/subscription/'. $subscription->transaction_id.'" class="btn btn-info btn-sm">Cancel Subscription</a>';
+                                                    }
+                                                }
                                             @endphp
                                         @else
                                             @php

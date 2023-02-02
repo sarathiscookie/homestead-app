@@ -10,9 +10,12 @@ use Carbon\Carbon;
 
 class HomeController extends Controller
 {
+    //TODO: Error reports store in to log file.
+    //TODO: Create a webhook to update the subscriptions->next_billing_at.
+    //TODO: Currently just disabled radio buttons in frontend. Backend validation not added.
     use CredentialsTrait;
 
-    const PAYMENT_TYPE = 'Yearly';
+    const PAYMENT_YEARLY_TYPE = 'Yearly';
     /**
      * Create a new controller instance.
      *
@@ -49,7 +52,6 @@ class HomeController extends Controller
                 'paymentMethodNonce' => $paymentMethodNonce
             ]);
         } catch (\Exception $e) {
-            //TODO: Store error details in to log file.
             return back()->withErrors('Something went wrong!');
         }
     }
@@ -62,13 +64,9 @@ class HomeController extends Controller
      */
     public function calculateDate($payment, $transaction)
     {
-        if ($payment->plan === self::PAYMENT_TYPE) {
-            $newDateTime = Carbon::now()->addYear();
-        } else {
-            $newDateTime = Carbon::parse($transaction->nextBillingDate)->format('Y-m-d');
+        if ($payment->plan !== self::PAYMENT_YEARLY_TYPE) {
+            return Carbon::parse($transaction->nextBillingDate)->format('Y-m-d');
         }
-
-        return $newDateTime;
     }
 
     /**
@@ -96,7 +94,7 @@ class HomeController extends Controller
         if ($result->success) {
             $this->store($payment, $result->transaction, $customerId);
 
-            return redirect('/home')->with('message', 'Subscription successful. The ID is
+            return redirect('/home')->with('message', 'Transaction successful. The ID is
             :'. $result->transaction->id);
             
         } else {
@@ -132,7 +130,8 @@ class HomeController extends Controller
                 $this->store($payment, $result->subscription, $customerId);
     
                 return redirect('/home')->with('message', 'Subscription successful. The ID is
-                :'. $result->subscription->id);
+                :'. $result->subscription->id .'. Next billing date is: '
+                . Carbon::parse( $result->subscription->nextBillingDate)->format('Y-m-d'));
                 
             } else {
                 $errorString = "";
@@ -144,7 +143,6 @@ class HomeController extends Controller
                 return back()->withErrors('An error occurred with the message: '.$errorString);
             }
         } else {
-            //TODO: This error details need to store in log file.
             return back()->withErrors('An error occurred with the message: Payment method token generation
              failed. Customer ID: '.$customerId);
         }
@@ -164,7 +162,8 @@ class HomeController extends Controller
 
         $token = $this->gateway()->ClientToken()->generate();
 
-        return view('home', ['payments' => $payments, 'token' => $token, 'subscription' => $subscription]);
+        return view('home', ['payments' => $payments, 'token' => $token,
+         'subscription' => $subscription, 'paymentYearlyType' => self::PAYMENT_YEARLY_TYPE]);
     }
 
     /**
@@ -187,7 +186,7 @@ class HomeController extends Controller
                 $customerId = $customer->customer->id;
             }
 
-            if ($payment->plan === self::PAYMENT_TYPE) {
+            if ($payment->plan === self::PAYMENT_YEARLY_TYPE) {
                 // Yearly checkout.
                 return $this->transactionSale($payment, $request->payment_method_nonce, $customerId);
             } else {
@@ -213,7 +212,26 @@ class HomeController extends Controller
             'payment_id' => $payment->id,
             'transaction_id' => $transaction->id,
             'btree_customer_id' => $customerId,
-            'ends_at' => $this->calculateDate($payment, $transaction)
+            'next_billing_at' => $this->calculateDate($payment, $transaction)
         ]);
+    }
+
+    /**
+     * Functionality to cancel the subscription.
+     *
+     * @param  string  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function cancelSubscription($id)
+    {
+        $result = $this->gateway()->subscription()->cancel($id);
+
+        if ($result->success) {
+            auth()->user()->subscription()->update([
+                'cancelled_at' => Carbon::now(),
+                'ends_at' => $result->subscription->billingPeriodEndDate
+            ]);
+        }
+        return redirect('/home')->with('message', 'Subscription cancelled!');
     }
 }

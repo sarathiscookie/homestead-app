@@ -22,3 +22,5 @@ Auth::routes();
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
 Route::post('/checkout', [App\Http\Controllers\HomeController::class, 'checkout'])->name('checkout');
+
+Route::get('/cancel/subscription/{id}', [App\Http\Controllers\HomeController::class, 'cancelSubscription'])->name('cancel.subscription');
